@@ -451,7 +451,7 @@ TEST DATA SETUP:
 PREVIOUS ATTEMPTS AND THEIR TIMES:
 {history_text}
 
-CURRENT BEST TIME: {best_time:.6f} seconds
+CURRENT BEST TIME: {best_time_str} seconds
 
 You MUST beat {best_time:.6f} seconds!
 
