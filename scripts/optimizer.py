@@ -489,3 +489,156 @@ Print the result length or sum to verify correctness."""
             
             # Benchmark it
             print(f"\n⏱️ Benchmarking...")
+
+  # Ask AI what approach it used
+                approach_prompt = f"""In 10 words or less, what optimization technique does this code use?
+
+{code[:500]}"""
+                approach = self.ask_ai(approach_prompt, temperature=0.1)
+                if not approach:
+                    approach = "Unknown approach"
+                approach = approach.strip()[:100]
+                
+                # Track this attempt
+                attempt = {
+                    "version": i + 1,
+                    "time": avg_time,
+                    "approach": approach,
+                    "code": code
+                }
+                all_attempts.append(attempt)
+                
+                # Check if this is the new best
+                if avg_time < best_time:
+                    improvement = ((best_time - avg_time) / best_time * 100) if best_time != float('inf') else 0
+                    best_time = avg_time
+                    best_code = code
+                    best_version = i + 1
+                    
+                    if improvement > 0:
+                        print(f"\n🏆🏆🏆 NEW BEST! 🏆🏆🏆")
+                        print(f"📈 Improved by {improvement:.1f}%!")
+                    else:
+                        print(f"\n🏆 First benchmark set: {avg_time:.6f}s")
+                else:
+                    diff = ((avg_time - best_time) / best_time * 100)
+                    print(f"\n❌ Slower by {diff:.1f}% - Best is still Version {best_version}")
+            
+            else:
+                print(f"❌ Code failed to run!")
+                for error in result["errors"][:3]:
+                    print(f"   Error: {error[:200]}")
+                
+                all_attempts.append({
+                    "version": i + 1,
+                    "time": float('inf'),
+                    "approach": "FAILED",
+                    "code": code
+                })
+        
+        # Final Report
+        print(f"\n{'='*60}")
+        print(f"🏁 OPTIMIZATION COMPLETE")
+        print(f"{'='*60}")
+        print(f"🏆 Best Version: {best_version}")
+        print(f"⏱️  Best Time: {best_time:.6f}s")
+        print(f"🔄 Total Attempts: {len(all_attempts)}")
+        
+        successful = [a for a in all_attempts if a['time'] != float('inf')]
+        if len(successful) > 1:
+            worst = max(a['time'] for a in successful)
+            improvement = ((worst - best_time) / worst * 100)
+            print(f"📈 Total Improvement: {improvement:.1f}%")
+        
+        print(f"\n📊 All Attempts:")
+        for a in all_attempts:
+            marker = "👑" if a['version'] == best_version else "  "
+            if a['time'] == float('inf'):
+                print(f"  {marker} V{a['version']}: FAILED - {a['approach']}")
+            else:
+                print(f"  {marker} V{a['version']}: {a['time']:.6f}s - {a['approach']}")
+        
+        # Save results
+        self.save_results(task, all_attempts, best_code, best_version)
+        
+        return best_code, best_time, all_attempts
+    
+    def save_results(self, task, attempts, best_code, best_version):
+        """Save optimization results to file"""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.join(self.results_dir, f"optimization_{timestamp}.json")
+        
+        data = {
+            "task": task,
+            "timestamp": timestamp,
+            "best_version": best_version,
+            "attempts": [
+                {
+                    "version": a["version"],
+                    "time": a["time"] if a["time"] != float('inf') else "FAILED",
+                    "approach": a["approach"],
+                    "code": a["code"]
+                }
+                for a in attempts
+            ],
+            "best_code": best_code
+        }
+        
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=2)
+        
+        print(f"\n💾 Results saved to: {filename}")
+        
+        # Also save best code as standalone file
+        if best_code:
+            code_file = os.path.join(self.results_dir, f"best_solution_{timestamp}.py")
+            with open(code_file, 'w') as f:
+                f.write(f"# Task: {task}\n")
+                f.write(f"# Best Version: {best_version}\n")
+                f.write(f"# Generated: {timestamp}\n\n")
+                f.write(best_code)
+            print(f"📝 Best code saved to: {code_file}")
+
+
+# ============================================
+#           MAIN RUNNER
+# ============================================
+
+if __name__ == "__main__":
+    
+    print("""
+    ╔══════════════════════════════════════╗
+    ║                                      ║
+    ║   🐍👑 PYTHON OVERLORD v1.0         ║
+    ║                                      ║
+    ║   AI-Powered Code Optimizer          ║
+    ║   "Making Python Unreasonably Fast"  ║
+    ║                                      ║
+    ╚══════════════════════════════════════╝
+    """)
+    
+    # Initialize the Overlord
+    overlord = PythonOverlord(model="deepseek-coder-v2")
+    
+    # ==========================================
+    # TEST CHALLENGE 1: Sort 1 Million Integers
+    # ==========================================
+    
+    task = "Sort a list of 1 million random integers as fast as possible"
+    
+    test_data = """
+import random
+random.seed(42)
+data = [random.randint(0, 10_000_000) for _ in range(1_000_000)]
+"""
+    
+    best_code, best_time, attempts = overlord.optimize(
+        task=task,
+        test_data_code=test_data,
+        iterations=5
+    )
+    
+    print(f"\n\n🎯 FINAL BEST CODE:")
+    print(f"{'='*60}")
+    print(best_code)
+    print(f"{'='*60}")
