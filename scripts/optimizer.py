@@ -241,7 +241,7 @@ Print the result length or sum to verify correctness."""
             
             if result["success"]:
                 avg_time = result["avg_time"]
-                print(f"✅ Average Time: {avg_time:.6f}s")
+                print(f"✅ Average Time: {avg_time_str}s")
                 print(f"   Min Time:     {result['min_time']:.6f}s")
                 print(f"   Max Time:     {result['max_time']:.6f}s")
                 
